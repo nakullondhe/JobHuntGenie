@@ -1,0 +1,10 @@
+node_modules/
+.env
+data/jobs.json
+data/applications.json
+resumes_output/
+resume/*.pdf
+resume/*.docx
+*.log
+.DS_Store
+dist/
