@@ -22,7 +22,7 @@ const config = {
     },
   },
 
-  targetJobs: (process.env.TARGET_JOBS || 'SWE-2,Senior Backend Engineer,Platform Engineer')
+  targetJobs: (process.env.TARGET_JOBS || 'Software Engineer 2,Senior Backend Engineer,Senior Software Engineer,Platform Engineer,SRE,Node.js Engineer')
     .split(',')
     .map(j => j.trim()),
 
