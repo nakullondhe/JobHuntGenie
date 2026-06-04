@@ -8,3 +8,5 @@ resume/*.docx
 *.log
 .DS_Store
 dist/
+public/bundle.js
+public/bundle.css
