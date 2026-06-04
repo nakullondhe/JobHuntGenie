@@ -349,6 +349,17 @@
   color: #fff;
 }
 
+.btn--outline-white {
+  background: transparent;
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.6);
+  cursor: pointer;
+}
+.btn--outline-white:hover { background: rgba(255,255,255,0.15); }
+
+.btn--warning { background: var(--warning); color: #fff; cursor: pointer; }
+.btn--warning:hover { opacity: 0.9; }
+
 /* ── Loading / Empty ── */
 
 .loading,

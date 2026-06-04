@@ -176,6 +176,36 @@ export default function Dashboard() {
   const [filter, setFilter] = useState('all');
   const [selectedJob, setSelectedJob] = useState(null);
   const [message, setMessage] = useState('');
+  const [resumeFilename, setResumeFilename] = useState(null);
+
+  const checkResume = useCallback(async () => {
+    try {
+      const res = await fetch('/api/has-resume');
+      const data = await res.json();
+      if (data.hasResume) setResumeFilename(data.filename);
+    } catch {}
+  }, []);
+
+  const handleUploadResume = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const form = new FormData();
+    form.append('resume', file);
+    setMessage('Uploading resume...');
+    try {
+      const res = await fetch('/api/upload-resume', { method: 'POST', body: form });
+      const data = await res.json();
+      if (data.success) {
+        setResumeFilename(data.filename);
+        setMessage(`Resume "${data.filename}" uploaded successfully.`);
+      } else {
+        setMessage(`Upload error: ${data.error}`);
+      }
+    } catch (err) {
+      setMessage(`Upload error: ${err.message}`);
+    }
+    setTimeout(() => setMessage(''), 5000);
+  };
 
   const fetchJobs = useCallback(async (status) => {
     try {
@@ -200,7 +230,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     setLoading(true);
-    Promise.all([fetchJobs(filter), fetchStats()]).finally(() => setLoading(false));
+    Promise.all([fetchJobs(filter), fetchStats(), checkResume()]).finally(() => setLoading(false));
 
     const interval = setInterval(() => {
       fetchJobs(filter);
@@ -278,6 +308,10 @@ export default function Dashboard() {
           <p className="header__subtitle">Automated Job Search & Resume Tailoring</p>
         </div>
         <div className="header__actions">
+          <label className={`btn ${resumeFilename ? 'btn--outline-white' : 'btn--warning'}`} title={resumeFilename ? `Resume: ${resumeFilename}` : 'Upload your base resume PDF'}>
+            {resumeFilename ? `📄 ${resumeFilename}` : '⬆ Upload Resume'}
+            <input type="file" accept=".pdf" style={{ display: 'none' }} onChange={handleUploadResume} />
+          </label>
           <button
             className="btn btn--primary"
             onClick={handleTriggerScrape}
