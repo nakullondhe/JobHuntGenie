@@ -13,13 +13,15 @@ export async function triggerSearch(keywords) {
   console.log(`[Scheduler] Running search for: ${searchKeywords.join(', ')}`);
 
   const rawJobs = await scraper.scrapeAll(searchKeywords);
-  const newJobs = jobsDb.removeExisting(rawJobs);
+  const newJobs = await jobsDb.removeExisting(rawJobs);
 
-  const addedJobs = newJobs.map(job => {
-    const kws = extractor.extractKeywords(job.description || '');
-    const matchScore = extractor.calculateMatchScore(job.description || '', kws);
-    return jobsDb.add({ ...job, keywords: kws, matchScore });
-  });
+  const addedJobs = await Promise.all(
+    newJobs.map(job => {
+      const kws = extractor.extractKeywords(job.description || '');
+      const matchScore = extractor.calculateMatchScore(job.description || '', kws);
+      return jobsDb.add({ ...job, keywords: kws, matchScore });
+    })
+  );
 
   console.log(`[Scheduler] Scraped: ${rawJobs.length}, New: ${addedJobs.length}`);
   return { scraped: rawJobs.length, added: addedJobs.length, jobs: addedJobs };
