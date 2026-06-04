@@ -23,13 +23,16 @@ function StatCard({ label, value, color }) {
   );
 }
 
-function JobCard({ job, onGenerateResume, onUpdateStatus, onSelect }) {
+function JobCard({ job, onUpdateStatus, onSelect }) {
+  const hasResume = job.hasResume || job.status === 'resume_generated';
+  const isPreparing = job.status === 'new' && !hasResume;
+
   return (
     <div className={`job-card job-card--${job.status}`} onClick={() => onSelect(job)}>
       <div className="job-card__header">
         <h3 className="job-card__title">{job.title}</h3>
         <span className={`status-badge status-badge--${job.status}`}>
-          {STATUS_LABELS[job.status] || job.status}
+          {isPreparing ? 'Preparing...' : (STATUS_LABELS[job.status] || job.status)}
         </span>
       </div>
       <div className="job-card__meta">
@@ -59,27 +62,22 @@ function JobCard({ job, onGenerateResume, onUpdateStatus, onSelect }) {
         </div>
       )}
       <div className="job-card__actions" onClick={e => e.stopPropagation()}>
-        {job.status === 'new' && (
-          <button className="btn btn--primary btn--sm" onClick={() => onGenerateResume(job.id)}>
-            Generate Resume
-          </button>
+        {hasResume && (
+          <a
+            className="btn btn--info btn--sm"
+            href={`/api/download-resume/${job.id}`}
+            download
+          >
+            ⬇ Download Resume
+          </a>
         )}
-        {job.status === 'resume_generated' && (
-          <>
-            <a
-              className="btn btn--info btn--sm"
-              href={`/api/download-resume/${job.id}`}
-              download
-            >
-              Download PDF
-            </a>
-            <button
-              className="btn btn--success btn--sm"
-              onClick={() => onUpdateStatus(job.id, 'applied')}
-            >
-              Mark Applied
-            </button>
-          </>
+        {hasResume && job.status !== 'applied' && job.status !== 'archived' && (
+          <button
+            className="btn btn--success btn--sm"
+            onClick={() => onUpdateStatus(job.id, 'applied')}
+          >
+            Mark Applied
+          </button>
         )}
         {job.url && (
           <a className="btn btn--outline btn--sm" href={job.url} target="_blank" rel="noreferrer">
@@ -91,7 +89,7 @@ function JobCard({ job, onGenerateResume, onUpdateStatus, onSelect }) {
   );
 }
 
-function JobModal({ job, onClose, onGenerateResume, onUpdateStatus }) {
+function JobModal({ job, onClose, onUpdateStatus }) {
   if (!job) return null;
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -130,33 +128,26 @@ function JobModal({ job, onClose, onGenerateResume, onUpdateStatus }) {
           </div>
         )}
         <div className="modal-actions">
-          {job.status === 'new' && (
-            <button className="btn btn--primary" onClick={() => { onGenerateResume(job.id); onClose(); }}>
-              Generate Resume
-            </button>
+          {(job.hasResume || job.status === 'resume_generated') && (
+            <a className="btn btn--info" href={`/api/download-resume/${job.id}`} download>
+              ⬇ Download Resume PDF
+            </a>
           )}
-          {job.status === 'resume_generated' && (
-            <>
-              <a className="btn btn--info" href={`/api/download-resume/${job.id}`} download>
-                Download PDF
-              </a>
-              <button className="btn btn--success" onClick={() => { onUpdateStatus(job.id, 'applied'); onClose(); }}>
-                Mark Applied
-              </button>
-            </>
-          )}
-          {STATUS_NEXT[job.status] && job.status !== 'resume_generated' && (
-            <button
-              className="btn btn--outline"
-              onClick={() => { onUpdateStatus(job.id, STATUS_NEXT[job.status]); onClose(); }}
-            >
-              Move to {STATUS_LABELS[STATUS_NEXT[job.status]]}
+          {job.status !== 'applied' && job.status !== 'archived' &&
+           (job.hasResume || job.status === 'resume_generated') && (
+            <button className="btn btn--success" onClick={() => { onUpdateStatus(job.id, 'applied'); onClose(); }}>
+              Mark Applied
             </button>
           )}
           {job.url && (
             <a className="btn btn--outline" href={job.url} target="_blank" rel="noreferrer">
               View on {job.source || 'Job Board'}
             </a>
+          )}
+          {job.status === 'applied' && (
+            <button className="btn btn--outline" onClick={() => { onUpdateStatus(job.id, 'archived'); onClose(); }}>
+              Archive
+            </button>
           )}
         </div>
         <div className="modal-footer">
@@ -238,23 +229,6 @@ export default function Dashboard() {
     }, 60000);
     return () => clearInterval(interval);
   }, [filter, fetchJobs, fetchStats]);
-
-  const handleGenerateResume = async (jobId) => {
-    setMessage('Generating resume...');
-    try {
-      const res = await fetch(`/api/jobs/${jobId}/generate-resume`, { method: 'POST' });
-      const data = await res.json();
-      if (data.success) {
-        setMessage(`Resume generated! Keywords: ${data.keywords.slice(0, 4).join(', ')}`);
-        await Promise.all([fetchJobs(filter), fetchStats()]);
-      } else {
-        setMessage(`Error: ${data.error}`);
-      }
-    } catch (err) {
-      setMessage(`Error: ${err.message}`);
-    }
-    setTimeout(() => setMessage(''), 5000);
-  };
 
   const handleTriggerScrape = async () => {
     setScraping(true);
@@ -361,7 +335,6 @@ export default function Dashboard() {
             <JobCard
               key={job.id}
               job={job}
-              onGenerateResume={handleGenerateResume}
               onUpdateStatus={handleUpdateStatus}
               onSelect={setSelectedJob}
             />
@@ -372,7 +345,6 @@ export default function Dashboard() {
       <JobModal
         job={selectedJob}
         onClose={() => setSelectedJob(null)}
-        onGenerateResume={handleGenerateResume}
         onUpdateStatus={handleUpdateStatus}
       />
     </div>
