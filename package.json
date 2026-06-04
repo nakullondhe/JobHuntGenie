@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "node src/server.js",
     "start": "node src/server.js",
+    "build": "esbuild src/index.jsx --bundle --outfile=public/bundle.js --jsx=automatic --loader:.css=local-css --minify",
     "scrape": "node src/scraper.js",
     "scheduler": "node src/scheduler.js"
   },
@@ -21,6 +22,12 @@
     "node-cron": "^3.0.2",
     "pdf-lib": "^1.17.1",
     "pg": "^8.11.3",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
     "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.20.0"
   }
 }
+
