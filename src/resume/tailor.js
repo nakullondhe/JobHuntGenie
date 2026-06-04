@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { PDFDocument } from 'pdf-lib';
+import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import { execSync } from 'child_process';
 
 // ── Nakul's complete profile compiled from all 5 resumes ─────────────────────
@@ -231,31 +231,140 @@ export class ResumeTailor {
   async _createPlaceholderPdf(outputPath, jobTitle, keywords) {
     const pdf = await PDFDocument.create();
     const page = pdf.addPage([612, 792]);
+    const { width } = page.getSize();
+    const M = 50;
+    let y = 742;
 
-    pdf.setTitle(`Resume - ${NAKUL_PROFILE.name}`);
+    const HB = await pdf.embedFont(StandardFonts.HelveticaBold);
+    const H  = await pdf.embedFont(StandardFonts.Helvetica);
+    const HI = await pdf.embedFont(StandardFonts.HelveticaOblique);
+
+    const clr = {
+      black:  rgb(0.05, 0.05, 0.08),
+      indigo: rgb(0.31, 0.38, 0.95),
+      muted:  rgb(0.40, 0.45, 0.55),
+      dim:    rgb(0.88, 0.90, 0.94),
+    };
+
+    const tc = s => s.replace(/\b\w/g, c => c.toUpperCase());
+
+    const draw = (txt, x, opts = {}) =>
+      page.drawText(String(txt), { x, y, font: H, size: 10, color: clr.black, ...opts });
+
+    const hRule = (thickness = 0.5, color = clr.dim) =>
+      page.drawLine({ start: { x: M, y }, end: { x: width - M, y }, thickness, color });
+
+    // ── Header ─────────────────────────────────────────────────────────────────
+    draw(NAKUL_PROFILE.name, M, { font: HB, size: 22, color: clr.black });
+    y -= 28;
+    draw(`${NAKUL_PROFILE.title}  ·  ${NAKUL_PROFILE.experience} of experience  ·  ${NAKUL_PROFILE.location}`,
+      M, { size: 10, color: clr.muted });
+    y -= 20;
+    hRule(1.5, clr.indigo);
+    y -= 22;
+
+    // ── Section label ──────────────────────────────────────────────────────────
+    const section = (title) => {
+      draw(title, M, { font: HB, size: 9, color: clr.indigo });
+      y -= 5;
+      hRule();
+      y -= 16;
+    };
+
+    // ── Skill row with wrapping ────────────────────────────────────────────────
+    const skillRow = (label, items) => {
+      draw(`${label}:`, M, { font: HB, size: 9, color: clr.black });
+      const vx = M + 105;
+      const maxW = width - M - vx;
+      const words = items.map(tc).join(', ').split(', ');
+      let line = '';
+      for (const word of words) {
+        const test = line ? `${line}, ${word}` : word;
+        if (H.widthOfTextAtSize(test, 9) > maxW && line) {
+          draw(line, vx, { font: H, size: 9 });
+          y -= 13;
+          line = word;
+        } else {
+          line = test;
+        }
+      }
+      if (line) draw(line, vx, { font: H, size: 9 });
+      y -= 16;
+    };
+
+    // ── Bullet with wrapping ───────────────────────────────────────────────────
+    const bullet = (text) => {
+      draw('•', M, { size: 9, color: clr.indigo });
+      const bx = M + 12;
+      const maxW = width - M - bx;
+      const words = text.split(' ');
+      let line = '';
+      for (const word of words) {
+        const test = line ? `${line} ${word}` : word;
+        if (H.widthOfTextAtSize(test, 9) > maxW && line) {
+          draw(line, bx, { font: H, size: 9 });
+          y -= 13;
+          line = word;
+        } else {
+          line = test;
+        }
+      }
+      if (line) draw(line, bx, { font: H, size: 9 });
+      y -= 16;
+    };
+
+    // ── Technical Skills ───────────────────────────────────────────────────────
+    section('TECHNICAL SKILLS');
+    skillRow('Languages',    NAKUL_PROFILE.languages);
+    skillRow('Backend',      NAKUL_PROFILE.backend.filter((_, i) => i < 8));
+    skillRow('Cloud & Infra', NAKUL_PROFILE.cloud);
+    skillRow('Databases',    NAKUL_PROFILE.databases);
+    skillRow('Frontend',     NAKUL_PROFILE.frontend);
+    skillRow('AI / LLM',     NAKUL_PROFILE.ai);
+    y -= 4;
+
+    // ── Key Achievements ───────────────────────────────────────────────────────
+    section('KEY ACHIEVEMENTS');
+    const achievements = [
+      'Led Kubernetes migration managing 5M+ network switches (bare-metal VM to K8s uplift)',
+      'Reduced MTTR on SEV1 production incidents to under 3 hours via observability improvements',
+      'Architected event-driven workflows using AWS Lambda, SQS, S3, and API Gateway',
+      'Built LLM & Generative AI integrations using OpenAI Codex and Claude / Anthropic APIs',
+      'Delivered full-stack features across React, Angular, Node.js, Ruby on Rails, and Next.js',
+      'Owned CI/CD pipelines, structured logging, and CloudWatch monitoring for production services',
+      'Mentored engineers, authored technical RFCs, and led cross-functional architecture reviews',
+      'Migrated AngularJS codebase to Angular 12+ with Jest & Cypress test suite',
+    ];
+    for (const a of achievements) bullet(a);
+    y -= 4;
+
+    // ── Role-specific tailoring ────────────────────────────────────────────────
+    if (keywords.length > 0) {
+      section(`TAILORED FOR: ${jobTitle.toUpperCase()}`);
+      const kwWords = keywords.join('  ·  ').split('  ·  ');
+      let line = '';
+      const maxW = width - M * 2;
+      for (const word of kwWords) {
+        const test = line ? `${line}  ·  ${word}` : word;
+        if (HI.widthOfTextAtSize(test, 8.5) > maxW && line) {
+          draw(line, M, { font: HI, size: 8.5, color: clr.muted });
+          y -= 13;
+          line = word;
+        } else {
+          line = test;
+        }
+      }
+      if (line) draw(line, M, { font: HI, size: 8.5, color: clr.muted });
+    }
+
+    pdf.setTitle(`Resume – ${NAKUL_PROFILE.name}`);
     pdf.setAuthor(NAKUL_PROFILE.name);
     pdf.setCreator(NAKUL_PROFILE.name);
     pdf.setProducer('JobHuntGenie');
     pdf.setSubject(jobTitle);
     pdf.setKeywords(keywords);
 
-    const lines = [
-      NAKUL_PROFILE.name,
-      `${NAKUL_PROFILE.title} | ${NAKUL_PROFILE.experience} experience`,
-      `${NAKUL_PROFILE.location}`,
-      '',
-      `Tailored for: ${jobTitle}`,
-      '',
-      `Matched keywords: ${keywords.slice(0, 8).join(', ')}`,
-      '',
-      'Upload your real Resume.pdf via the dashboard to replace this placeholder.',
-    ];
-    lines.forEach((line, i) => {
-      page.drawText(line, { x: 50, y: 742 - i * 22, size: i === 0 ? 20 : 11 });
-    });
-
-    const pdfBytes = await pdf.save();
-    fs.writeFileSync(outputPath, pdfBytes);
+    fs.writeFileSync(outputPath, await pdf.save());
   }
 
   // Replace typographic chars that can confuse ATS scanners
