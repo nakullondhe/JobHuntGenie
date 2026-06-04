@@ -3,6 +3,7 @@ import config from './config.js';
 import { JobsDB } from './utils/db.js';
 import { JobScraper } from './scrapers/jobScraper.js';
 import { ResumeKeywordExtractor } from './resume/tailor.js';
+import { generateResumesForJobs } from './utils/autoResume.js';
 
 const jobsDb = new JobsDB();
 const scraper = new JobScraper();
@@ -24,6 +25,10 @@ export async function triggerSearch(keywords) {
   );
 
   console.log(`[Scheduler] Scraped: ${rawJobs.length}, New: ${addedJobs.length}`);
+
+  // Auto-generate tailored resumes for all new jobs
+  await generateResumesForJobs(addedJobs);
+
   return { scraped: rawJobs.length, added: addedJobs.length, jobs: addedJobs };
 }
 

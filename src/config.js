@@ -22,7 +22,7 @@ const config = {
     },
   },
 
-  targetJobs: (process.env.TARGET_JOBS || 'SWE-2,Senior Backend Engineer,Platform Engineer')
+  targetJobs: (process.env.TARGET_JOBS || 'Software Engineer 2,Senior Software Engineer,Senior Backend Engineer,Full Stack Engineer,Node.js Engineer,React Engineer,Ruby on Rails Engineer,Frontend Engineer,TypeScript Engineer,Backend Developer,Frontend Developer,Software Engineer')
     .split(',')
     .map(j => j.trim()),
 
@@ -32,9 +32,12 @@ const config = {
   scrapeSchedule: process.env.SCRAPE_SCHEDULE || '0 9 * * *',
 
   scraping: {
-    dice: process.env.SCRAPE_DICE !== '0',
-    indeed: process.env.SCRAPE_INDEED !== '0',
-    linkedin: process.env.SCRAPE_LINKEDIN === '1',
+    dice:      process.env.SCRAPE_DICE !== '0',
+    indeed:    process.env.SCRAPE_INDEED !== '0',
+    glassdoor: process.env.SCRAPE_GLASSDOOR !== '0',
+    wwr:       process.env.SCRAPE_WWR !== '0',
+    remoteco:  process.env.SCRAPE_REMOTECO !== '0',
+    linkedin:  process.env.SCRAPE_LINKEDIN === '1',
   },
 
   dataDir: path.resolve(root, 'data'),

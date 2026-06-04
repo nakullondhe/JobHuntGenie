@@ -10,6 +10,7 @@ import config from './config.js';
 import { initSchema, JobsDB, ApplicationsDB, SettingsDB, pool } from './utils/db.js';
 import { JobScraper } from './scrapers/jobScraper.js';
 import { ResumeTailor, ResumeKeywordExtractor } from './resume/tailor.js';
+import { generateResumesForJobs } from './utils/autoResume.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
@@ -201,7 +202,11 @@ app.post('/api/scrape', async (req, res) => {
       })
     );
 
+    // Respond immediately, then auto-generate resumes in background
     res.json({ success: true, scraped: rawJobs.length, added: addedJobs.length, jobs: addedJobs });
+    generateResumesForJobs(addedJobs).catch(err =>
+      console.error('[auto-resume background]', err.message)
+    );
   } catch (err) {
     console.error('[scrape]', err);
     res.status(500).json({ success: false, error: err.message });
