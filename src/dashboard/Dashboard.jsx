@@ -1,87 +1,123 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import './Dashboard.css';
 
-const STATUS_LABELS = {
-  new: 'New',
-  resume_generated: 'Resume Ready',
-  applied: 'Applied',
-  archived: 'Archived',
+const SOURCE_COLORS = {
+  dice:          '#2563eb',
+  indeed:        '#16a34a',
+  glassdoor:     '#ea580c',
+  weworkremotely:'#7c3aed',
+  'remote.co':   '#0891b2',
 };
 
-const STATUS_NEXT = {
-  new: 'resume_generated',
-  resume_generated: 'applied',
-  applied: 'archived',
+const STATUS_META = {
+  new:              { label: 'New',         color: '#6366f1', bg: '#eef2ff' },
+  resume_generated: { label: 'Ready',       color: '#10b981', bg: '#ecfdf5' },
+  applied:          { label: 'Applied',     color: '#f59e0b', bg: '#fffbeb' },
+  archived:         { label: 'Archived',    color: '#94a3b8', bg: '#f8fafc' },
 };
 
-function StatCard({ label, value, color }) {
+function ScoreRing({ score }) {
+  const r = 18, c = 2 * Math.PI * r;
+  const fill = (score / 100) * c;
+  const color = score >= 80 ? '#10b981' : score >= 60 ? '#6366f1' : '#f59e0b';
   return (
-    <div className={`stat-card stat-card--${color}`}>
-      <div className="stat-value">{value}</div>
-      <div className="stat-label">{label}</div>
+    <div className="score-ring" title={`${score}% match`}>
+      <svg width="44" height="44" viewBox="0 0 44 44">
+        <circle cx="22" cy="22" r={r} fill="none" stroke="#e2e8f0" strokeWidth="3.5" />
+        <circle cx="22" cy="22" r={r} fill="none" stroke={color} strokeWidth="3.5"
+          strokeDasharray={`${fill} ${c}`} strokeLinecap="round"
+          transform="rotate(-90 22 22)" />
+      </svg>
+      <span className="score-ring__label" style={{ color }}>{score}%</span>
     </div>
+  );
+}
+
+function StatCard({ icon, label, value, accent }) {
+  return (
+    <div className="stat-card" style={{ '--accent': accent }}>
+      <div className="stat-card__icon">{icon}</div>
+      <div className="stat-card__body">
+        <div className="stat-card__value">{value}</div>
+        <div className="stat-card__label">{label}</div>
+      </div>
+    </div>
+  );
+}
+
+function SourceBadge({ source }) {
+  const color = SOURCE_COLORS[source] || '#64748b';
+  return (
+    <span className="source-badge" style={{ color, borderColor: color + '33', background: color + '12' }}>
+      {source}
+    </span>
+  );
+}
+
+function StatusPill({ status }) {
+  const m = STATUS_META[status] || { label: status, color: '#64748b', bg: '#f1f5f9' };
+  return (
+    <span className="status-pill" style={{ color: m.color, background: m.bg }}>
+      {m.label}
+    </span>
   );
 }
 
 function JobCard({ job, onUpdateStatus, onSelect }) {
   const hasResume = job.hasResume || job.status === 'resume_generated';
-  const isPreparing = job.status === 'new' && !hasResume;
+  const preparing = job.status === 'new' && !hasResume;
 
   return (
-    <div className={`job-card job-card--${job.status}`} onClick={() => onSelect(job)}>
-      <div className="job-card__header">
-        <h3 className="job-card__title">{job.title}</h3>
-        <span className={`status-badge status-badge--${job.status}`}>
-          {isPreparing ? 'Preparing...' : (STATUS_LABELS[job.status] || job.status)}
-        </span>
+    <div className="job-card" onClick={() => onSelect(job)}>
+      <div className="job-card__top">
+        <div className="job-card__title-row">
+          <h3 className="job-card__title">{job.title}</h3>
+          <StatusPill status={job.status} />
+        </div>
+        <div className="job-card__meta">
+          <span className="job-card__company">{job.company}</span>
+          {job.location && <span className="job-card__dot">·</span>}
+          <span className="job-card__location">{job.location}</span>
+        </div>
+        <div className="job-card__badges">
+          {job.source && <SourceBadge source={job.source} />}
+        </div>
       </div>
-      <div className="job-card__meta">
-        <span className="job-card__company">{job.company}</span>
-        <span className="job-card__sep">·</span>
-        <span className="job-card__location">{job.location}</span>
-        {job.source && <span className="job-card__source">{job.source}</span>}
-      </div>
+
       {typeof job.matchScore === 'number' && (
-        <div className="job-card__score">
-          <div
-            className="score-bar"
-            style={{ width: `${job.matchScore}%` }}
-            title={`Match score: ${job.matchScore}%`}
-          />
-          <span className="score-label">{job.matchScore}% match</span>
+        <div className="job-card__score-row">
+          <ScoreRing score={job.matchScore} />
+          <div className="job-card__keywords">
+            {(job.keywords || []).slice(0, 5).map(kw => (
+              <span key={kw} className="kw-chip">{kw}</span>
+            ))}
+            {(job.keywords || []).length > 5 && (
+              <span className="kw-chip kw-chip--more">+{job.keywords.length - 5}</span>
+            )}
+          </div>
         </div>
       )}
-      {job.keywords && job.keywords.length > 0 && (
-        <div className="job-card__keywords">
-          {job.keywords.slice(0, 6).map(kw => (
-            <span key={kw} className="keyword-tag">{kw}</span>
-          ))}
-          {job.keywords.length > 6 && (
-            <span className="keyword-tag keyword-tag--more">+{job.keywords.length - 6}</span>
-          )}
-        </div>
-      )}
+
       <div className="job-card__actions" onClick={e => e.stopPropagation()}>
-        {hasResume && (
-          <a
-            className="btn btn--info btn--sm"
-            href={`/api/download-resume/${job.id}`}
-            download
-          >
-            ⬇ Download Resume
-          </a>
-        )}
-        {hasResume && job.status !== 'applied' && job.status !== 'archived' && (
-          <button
-            className="btn btn--success btn--sm"
-            onClick={() => onUpdateStatus(job.id, 'applied')}
-          >
-            Mark Applied
-          </button>
-        )}
+        {preparing ? (
+          <span className="preparing-badge">
+            <span className="spinner" /> Generating resume…
+          </span>
+        ) : hasResume ? (
+          <>
+            <a className="btn btn--download" href={`/api/download-resume/${job.id}`} download>
+              ↓ Download Resume
+            </a>
+            {job.status !== 'applied' && job.status !== 'archived' && (
+              <button className="btn btn--apply" onClick={() => onUpdateStatus(job.id, 'applied')}>
+                Mark Applied
+              </button>
+            )}
+          </>
+        ) : null}
         {job.url && (
-          <a className="btn btn--outline btn--sm" href={job.url} target="_blank" rel="noreferrer">
-            View Job
+          <a className="btn btn--ghost" href={job.url} target="_blank" rel="noreferrer">
+            View Job ↗
           </a>
         )}
       </div>
@@ -91,68 +127,68 @@ function JobCard({ job, onUpdateStatus, onSelect }) {
 
 function JobModal({ job, onClose, onUpdateStatus }) {
   if (!job) return null;
+  const hasResume = job.hasResume || job.status === 'resume_generated';
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={e => e.stopPropagation()}>
-        <button className="modal-close" onClick={onClose}>✕</button>
-        <div className="modal-header">
-          <h2>{job.title}</h2>
-          <span className={`status-badge status-badge--${job.status}`}>
-            {STATUS_LABELS[job.status] || job.status}
-          </span>
+      <div className="modal" onClick={e => e.stopPropagation()}>
+        <button className="modal__close" onClick={onClose}>✕</button>
+
+        <div className="modal__header">
+          <div>
+            <h2 className="modal__title">{job.title}</h2>
+            <div className="modal__meta">
+              <strong>{job.company}</strong>
+              {job.location && <> · {job.location}</>}
+              {job.source && <SourceBadge source={job.source} />}
+            </div>
+          </div>
+          <div className="modal__status-score">
+            <StatusPill status={job.status} />
+            {typeof job.matchScore === 'number' && <ScoreRing score={job.matchScore} />}
+          </div>
         </div>
-        <div className="modal-meta">
-          <strong>{job.company}</strong> · {job.location}
-          {job.source && <span className="job-card__source">{job.source}</span>}
-        </div>
-        {typeof job.matchScore === 'number' && (
-          <div className="modal-score">
-            Match Score: <strong>{job.matchScore}%</strong>
-            <div className="score-bar-bg">
-              <div className="score-bar" style={{ width: `${job.matchScore}%` }} />
+
+        {job.keywords?.length > 0 && (
+          <div className="modal__section">
+            <div className="modal__section-label">Matched Keywords</div>
+            <div className="modal__keywords">
+              {job.keywords.map(kw => <span key={kw} className="kw-chip">{kw}</span>)}
             </div>
           </div>
         )}
-        {job.keywords && job.keywords.length > 0 && (
-          <div className="modal-keywords">
-            <strong>Keywords: </strong>
-            {job.keywords.map(kw => (
-              <span key={kw} className="keyword-tag">{kw}</span>
-            ))}
-          </div>
-        )}
+
         {job.description && (
-          <div className="modal-description">
-            <strong>Description:</strong>
-            <p>{job.description}</p>
+          <div className="modal__section">
+            <div className="modal__section-label">Job Description</div>
+            <p className="modal__description">{job.description}</p>
           </div>
         )}
-        <div className="modal-actions">
-          {(job.hasResume || job.status === 'resume_generated') && (
-            <a className="btn btn--info" href={`/api/download-resume/${job.id}`} download>
-              ⬇ Download Resume PDF
+
+        <div className="modal__actions">
+          {hasResume && (
+            <a className="btn btn--download" href={`/api/download-resume/${job.id}`} download>
+              ↓ Download Tailored Resume
             </a>
           )}
-          {job.status !== 'applied' && job.status !== 'archived' &&
-           (job.hasResume || job.status === 'resume_generated') && (
-            <button className="btn btn--success" onClick={() => { onUpdateStatus(job.id, 'applied'); onClose(); }}>
+          {job.status !== 'applied' && job.status !== 'archived' && hasResume && (
+            <button className="btn btn--apply" onClick={() => { onUpdateStatus(job.id, 'applied'); onClose(); }}>
               Mark Applied
             </button>
           )}
-          {job.url && (
-            <a className="btn btn--outline" href={job.url} target="_blank" rel="noreferrer">
-              View on {job.source || 'Job Board'}
-            </a>
-          )}
           {job.status === 'applied' && (
-            <button className="btn btn--outline" onClick={() => { onUpdateStatus(job.id, 'archived'); onClose(); }}>
+            <button className="btn btn--ghost" onClick={() => { onUpdateStatus(job.id, 'archived'); onClose(); }}>
               Archive
             </button>
           )}
+          {job.url && (
+            <a className="btn btn--ghost" href={job.url} target="_blank" rel="noreferrer">
+              View Original Posting ↗
+            </a>
+          )}
         </div>
-        <div className="modal-footer">
-          Added: {new Date(job.createdAt).toLocaleDateString()}
-          {job.updatedAt !== job.createdAt && ` · Updated: ${new Date(job.updatedAt).toLocaleDateString()}`}
+
+        <div className="modal__footer">
+          Added {new Date(job.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
         </div>
       </div>
     </div>
@@ -160,191 +196,155 @@ function JobModal({ job, onClose, onUpdateStatus }) {
 }
 
 export default function Dashboard() {
-  const [jobs, setJobs] = useState([]);
-  const [stats, setStats] = useState({});
-  const [loading, setLoading] = useState(false);
+  const [jobs, setJobs]         = useState([]);
+  const [stats, setStats]       = useState({});
+  const [loading, setLoading]   = useState(true);
   const [scraping, setScraping] = useState(false);
-  const [filter, setFilter] = useState('all');
-  const [selectedJob, setSelectedJob] = useState(null);
-  const [message, setMessage] = useState('');
-  const [resumeFilename, setResumeFilename] = useState(null);
+  const [filter, setFilter]     = useState('all');
+  const [selected, setSelected] = useState(null);
+  const [toast, setToast]       = useState('');
 
-  const checkResume = useCallback(async () => {
-    try {
-      const res = await fetch('/api/has-resume');
-      const data = await res.json();
-      if (data.hasResume) setResumeFilename(data.filename);
-    } catch {}
-  }, []);
-
-  const handleUploadResume = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const form = new FormData();
-    form.append('resume', file);
-    setMessage('Uploading resume...');
-    try {
-      const res = await fetch('/api/upload-resume', { method: 'POST', body: form });
-      const data = await res.json();
-      if (data.success) {
-        setResumeFilename(data.filename);
-        setMessage(`Resume "${data.filename}" uploaded successfully.`);
-      } else {
-        setMessage(`Upload error: ${data.error}`);
-      }
-    } catch (err) {
-      setMessage(`Upload error: ${err.message}`);
-    }
-    setTimeout(() => setMessage(''), 5000);
+  const showToast = (msg, duration = 5000) => {
+    setToast(msg);
+    setTimeout(() => setToast(''), duration);
   };
 
   const fetchJobs = useCallback(async (status) => {
     try {
       const url = status && status !== 'all' ? `/api/jobs?status=${status}` : '/api/jobs';
-      const res = await fetch(url);
-      const data = await res.json();
+      const data = await fetch(url).then(r => r.json());
       if (data.success) setJobs(data.jobs);
-    } catch (err) {
-      console.error('Failed to fetch jobs:', err);
-    }
+    } catch {}
   }, []);
 
   const fetchStats = useCallback(async () => {
     try {
-      const res = await fetch('/api/stats');
-      const data = await res.json();
+      const data = await fetch('/api/stats').then(r => r.json());
       if (data.success) setStats(data.stats);
-    } catch (err) {
-      console.error('Failed to fetch stats:', err);
-    }
+    } catch {}
   }, []);
 
   useEffect(() => {
-    setLoading(true);
-    Promise.all([fetchJobs(filter), fetchStats(), checkResume()]).finally(() => setLoading(false));
-
-    const interval = setInterval(() => {
-      fetchJobs(filter);
-      fetchStats();
-    }, 60000);
-    return () => clearInterval(interval);
+    Promise.all([fetchJobs(filter), fetchStats()]).finally(() => setLoading(false));
+    const t = setInterval(() => { fetchJobs(filter); fetchStats(); }, 30000);
+    return () => clearInterval(t);
   }, [filter, fetchJobs, fetchStats]);
 
-  const handleTriggerScrape = async () => {
+  const handleScrape = async () => {
     setScraping(true);
-    setMessage('Searching for jobs...');
+    showToast('Searching 5 job boards…', 30000);
     try {
-      const res = await fetch('/api/scrape', { method: 'POST' });
-      const data = await res.json();
+      const data = await fetch('/api/scrape', { method: 'POST' }).then(r => r.json());
       if (data.success) {
-        setMessage(`Found ${data.scraped} jobs, added ${data.added} new ones.`);
+        showToast(`Found ${data.scraped} jobs · ${data.added} new added · generating resumes…`);
         await Promise.all([fetchJobs(filter), fetchStats()]);
       } else {
-        setMessage(`Error: ${data.error}`);
+        showToast(`Error: ${data.error}`);
       }
     } catch (err) {
-      setMessage(`Error: ${err.message}`);
+      showToast(`Error: ${err.message}`);
     } finally {
       setScraping(false);
     }
-    setTimeout(() => setMessage(''), 7000);
   };
 
   const handleUpdateStatus = async (jobId, status) => {
     try {
-      const res = await fetch(`/api/jobs/${jobId}/status`, {
+      const data = await fetch(`/api/jobs/${jobId}/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        await Promise.all([fetchJobs(filter), fetchStats()]);
-      }
-    } catch (err) {
-      console.error('Failed to update status:', err);
-    }
+      }).then(r => r.json());
+      if (data.success) { fetchJobs(filter); fetchStats(); }
+    } catch {}
   };
 
-  const filters = [
-    { key: 'all', label: 'All Jobs' },
-    { key: 'new', label: 'New' },
-    { key: 'resume_generated', label: 'Resume Ready' },
-    { key: 'applied', label: 'Applied' },
-    { key: 'archived', label: 'Archived' },
+  const FILTERS = [
+    { key: 'all',              label: 'All',         count: stats.totalJobs },
+    { key: 'new',              label: 'New',         count: stats.newJobs },
+    { key: 'resume_generated', label: 'Ready',       count: stats.generated },
+    { key: 'applied',          label: 'Applied',     count: stats.applied },
+    { key: 'archived',         label: 'Archived',    count: null },
   ];
 
   return (
-    <div className="dashboard">
-      <header className="dashboard__header">
-        <div className="header__content">
-          <h1>JobHuntGenie</h1>
-          <p className="header__subtitle">Automated Job Search & Resume Tailoring</p>
+    <div className="app">
+      <header className="header">
+        <div className="header__brand">
+          <div className="header__logo">
+            <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+              <rect width="28" height="28" rx="8" fill="white" fillOpacity="0.15"/>
+              <path d="M7 14C7 10.134 10.134 7 14 7s7 3.134 7 7-3.134 7-7 7-7-3.134-7-7z" stroke="white" strokeWidth="2"/>
+              <path d="M14 11v3l2 2" stroke="white" strokeWidth="2" strokeLinecap="round"/>
+            </svg>
+          </div>
+          <div className="header__text">
+            <h1>JobHuntGenie</h1>
+            <p>5 job boards · auto resume tailoring · real-time matching</p>
+          </div>
         </div>
-        <div className="header__actions">
-          <label className={`btn ${resumeFilename ? 'btn--outline-white' : 'btn--warning'}`} title={resumeFilename ? `Resume: ${resumeFilename}` : 'Upload your base resume PDF'}>
-            {resumeFilename ? `📄 ${resumeFilename}` : '⬆ Upload Resume'}
-            <input type="file" accept=".pdf" style={{ display: 'none' }} onChange={handleUploadResume} />
-          </label>
-          <button
-            className="btn btn--primary"
-            onClick={handleTriggerScrape}
-            disabled={scraping}
-          >
-            {scraping ? 'Searching...' : 'Search Jobs'}
-          </button>
-        </div>
+        <button className="btn btn--search" onClick={handleScrape} disabled={scraping}>
+          {scraping
+            ? <><span className="spinner spinner--white" /> Searching…</>
+            : '🔍 Search Jobs Now'}
+        </button>
       </header>
 
-      {message && (
-        <div className="message-banner">
-          {message}
+      {toast && <div className="toast">{toast}</div>}
+
+      <main className="main">
+        <div className="stats-row">
+          <StatCard icon="📋" label="Total Jobs"    value={stats.totalJobs  || 0} accent="#6366f1" />
+          <StatCard icon="✨" label="New"           value={stats.newJobs    || 0} accent="#6366f1" />
+          <StatCard icon="📄" label="Resume Ready" value={stats.generated  || 0} accent="#10b981" />
+          <StatCard icon="✅" label="Applied"      value={stats.applied    || 0} accent="#f59e0b" />
+          <StatCard icon="🎯" label="Avg Match"    value={`${stats.avgScore || 0}%`} accent="#8b5cf6" />
         </div>
-      )}
 
-      <div className="stats-grid">
-        <StatCard label="Total Jobs" value={stats.totalJobs || 0} color="blue" />
-        <StatCard label="New" value={stats.newJobs || 0} color="blue" />
-        <StatCard label="Resume Ready" value={stats.generated || 0} color="green" />
-        <StatCard label="Applied" value={stats.applied || 0} color="gray" />
-        <StatCard label="Avg Match" value={`${stats.avgScore || 0}%`} color="purple" />
-      </div>
-
-      <div className="filter-bar">
-        {filters.map(f => (
-          <button
-            key={f.key}
-            className={`filter-btn${filter === f.key ? ' filter-btn--active' : ''}`}
-            onClick={() => setFilter(f.key)}
-          >
-            {f.label}
-          </button>
-        ))}
-      </div>
-
-      {loading ? (
-        <div className="loading">Loading jobs...</div>
-      ) : jobs.length === 0 ? (
-        <div className="empty-state">
-          <h3>No jobs found</h3>
-          <p>Click "Search Jobs" to find new opportunities, or change the filter.</p>
-        </div>
-      ) : (
-        <div className="jobs-grid">
-          {jobs.map(job => (
-            <JobCard
-              key={job.id}
-              job={job}
-              onUpdateStatus={handleUpdateStatus}
-              onSelect={setSelectedJob}
-            />
+        <div className="filter-bar">
+          {FILTERS.map(f => (
+            <button
+              key={f.key}
+              className={`filter-pill${filter === f.key ? ' filter-pill--active' : ''}`}
+              onClick={() => setFilter(f.key)}
+            >
+              {f.label}
+              {f.count != null && <span className="filter-pill__count">{f.count}</span>}
+            </button>
           ))}
         </div>
-      )}
+
+        {loading ? (
+          <div className="empty-state">
+            <div className="spinner spinner--lg" />
+            <p>Loading…</p>
+          </div>
+        ) : jobs.length === 0 ? (
+          <div className="empty-state">
+            <div className="empty-state__icon">🔍</div>
+            <h3>No jobs yet</h3>
+            <p>Click <strong>Search Jobs Now</strong> to scan 5 job boards for your target roles.</p>
+            <button className="btn btn--search" onClick={handleScrape} disabled={scraping}>
+              Search Jobs Now
+            </button>
+          </div>
+        ) : (
+          <div className="jobs-grid">
+            {jobs.map(job => (
+              <JobCard
+                key={job.id}
+                job={job}
+                onUpdateStatus={handleUpdateStatus}
+                onSelect={setSelected}
+              />
+            ))}
+          </div>
+        )}
+      </main>
 
       <JobModal
-        job={selectedJob}
-        onClose={() => setSelectedJob(null)}
+        job={selected}
+        onClose={() => setSelected(null)}
         onUpdateStatus={handleUpdateStatus}
       />
     </div>
