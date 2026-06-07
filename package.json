@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "node src/server.js",
     "start": "node src/server.js",
-    "build": "esbuild src/index.jsx --bundle --outfile=public/bundle.js --jsx=automatic --loader:.css=local-css --minify",
+    "build": "esbuild src/index.jsx --bundle --outfile=public/bundle.js --jsx=automatic --loader:.css=css --minify",
     "scrape": "node src/scraper.js",
     "scheduler": "node src/scheduler.js"
   },
