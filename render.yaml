@@ -20,7 +20,7 @@ services:
       - key: TARGET_JOBS
         value: "Software Engineer 2,Senior Software Engineer,Senior Backend Engineer,Full Stack Engineer,Node.js Engineer,React Engineer,Ruby on Rails Engineer,Frontend Engineer,TypeScript Engineer,Backend Developer,Frontend Developer,Software Engineer"
       - key: SCRAPE_SCHEDULE
-        value: "0 9 * * *"
+        value: "0 */2 * * *"
       - key: SCRAPE_DICE
         value: "1"
       - key: SCRAPE_INDEED

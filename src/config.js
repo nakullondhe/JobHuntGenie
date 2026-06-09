@@ -29,7 +29,7 @@ const config = {
   resumePath: path.resolve(root, process.env.RESUME_INPUT_PATH || './resume/Resume.pdf'),
   resumeOutputDir: path.resolve(root, process.env.RESUME_OUTPUT_DIR || './resumes_output'),
 
-  scrapeSchedule: process.env.SCRAPE_SCHEDULE || '0 9 * * *',
+  scrapeSchedule: process.env.SCRAPE_SCHEDULE || '0 */2 * * *',
 
   scraping: {
     dice:      process.env.SCRAPE_DICE !== '0',
