@@ -47,4 +47,5 @@ process.on('SIGINT', () => {
   process.exit(0);
 });
 
-console.log(`[Scheduler] Running. Next search scheduled: ${config.scrapeSchedule}`);
+console.log(`[Scheduler] Running. Schedule: ${config.scrapeSchedule} (every 2 hours)`);
+console.log(`[Scheduler] Server start time: ${new Date().toISOString()}`);
